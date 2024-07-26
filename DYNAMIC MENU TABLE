@@ -1,0 +1,12 @@
+select MENU_CODE,
+       MENU_DESCRIPTION,
+       PARENT_MENU_CODE,
+       IS_WEB,
+       PAGE_NUMBER,
+       ICON_IMAGE,
+       SERIAL_NUMBER,
+       CREATED_BY,
+       CREATED_ON,
+       UPDATED_BY,
+       UPDATED_ON
+  from DEV_TABLE_MENU_REGISTRATION
