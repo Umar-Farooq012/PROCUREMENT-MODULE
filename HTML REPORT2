@@ -1,0 +1,126 @@
+DECLARE
+    CURSOR c_po_details IS
+        SELECT 
+            PO.PO_ID,
+            PO.TRANSACTION_DATE AS CO_Date,
+            MAX(CASE WHEN REG.REG_TYPE = 'SUPPLIER' AND REG.SR_ID = PO.VENDOR_ID THEN REG.PARTY_NAME END) AS VENDOR_NAME,
+            MAX(CASE WHEN LD.DET_ID = PO.PAYMENT_MODE_ID THEN LD.LOOKUP_DET_NAME END) AS PAYMENT_MODE,
+            MAX(CASE WHEN REG.REG_TYPE = 'COMPANY' AND REG.SR_ID = PO.COMPANY_ID THEN REG.REG_NAME END) AS COMPANY_NAME,
+            PO.COMPANY_ORDER_NO AS COMPANY_NO,
+            MAX(CASE WHEN REG.REG_TYPE = 'AGENCY' AND REG.SR_ID = PO.AGENCY_ID THEN REG.REG_NAME END) AS AGENCY_NAME,
+            MAX(CASE WHEN LD.DET_ID = PO.TRANSACTION_TYPE_ID THEN LD.LOOKUP_DET_NAME END) AS TRANSACTION_TYPE
+        FROM 
+            AB_PO_PURCHASE_ORDER PO
+        LEFT JOIN 
+            AB_LOOKUP_DETAIL LD ON LD.DET_ID IN (PO.PAYMENT_MODE_ID, PO.TRANSACTION_TYPE_ID)
+        LEFT JOIN 
+            AB_SETUP_REGISTRATION REG ON REG.SR_ID IN (PO.VENDOR_ID, PO.COMPANY_ID, PO.AGENCY_ID)
+        WHERE
+            PO.PO_ID = :P80_PO_ID
+        GROUP BY
+            PO.PO_ID,
+            PO.TRANSACTION_DATE,
+            PO.COMPANY_ORDER_NO;
+
+    rec c_po_details%ROWTYPE;
+BEGIN
+    -- Start HTML output
+    htp.p('<html>');
+    htp.p('<head>');
+    htp.p('<style>');
+    htp.p('body { font-family: Arial, sans-serif; }');
+    htp.p('.po-details { width: 100%; margin-bottom: 20px; display: flex; justify-content: space-between; }');
+    htp.p('.column { width: 48%; }');
+    htp.p('.column-left { margin-right: 2%; }');
+    htp.p('.column-right { margin-left: 65%; }');
+    htp.p('.po-details div { padding: 5px 0; }');
+    htp.p('.item-details { width: 100%; border-collapse: collapse; margin-top: 20px; }');
+    htp.p('.item-details th, .item-details td { border: 1px solid black; padding: 8px; text-align: left; }');
+    htp.p('.item-details th { background-color: #f2f2f2; }');
+    htp.p('</style>');
+    htp.p('</head>');
+    htp.p('<body>');
+   -- Add centered headings with inline CSS
+    htp.p('<h1 style="text-align: center;">Akbar Brother Groups</h1>');
+    htp.p('<h2 style="text-align: center;">Customer Orders</h2>');
+    -- Fetch and display Purchase Order details
+    OPEN c_po_details;
+    FETCH c_po_details INTO rec;
+    CLOSE c_po_details;
+
+    htp.p('<div class="po-details">');
+    -- Left side details
+    htp.p('<div class="column column-left">');
+    htp.p('<div><strong>PO ID:</strong> ' || rec.PO_ID || '</div>');
+    htp.p('<div><strong>CO Date:</strong> ' || rec.CO_Date || '</div>');
+    htp.p('<div><strong>Vendor Name:</strong> ' || rec.VENDOR_NAME || '</div>');
+    htp.p('<div><strong>Payment Mode:</strong> ' || rec.PAYMENT_MODE || '</div>');
+    htp.p('</div>');
+    
+    -- Right side details
+    htp.p('<div class="column column-right">');
+    htp.p('<div><strong>Company Name:</strong> ' || rec.COMPANY_NAME || '</div>');
+    htp.p('<div><strong>Company No:</strong> ' || rec.COMPANY_NO || '</div>');
+    htp.p('<div><strong>Agency Name:</strong> ' || rec.AGENCY_NAME || '</div>');
+    htp.p('<div><strong>Transaction Type:</strong> ' || rec.TRANSACTION_TYPE || '</div>');
+    htp.p('</div>');
+
+    htp.p('</div>');
+
+    -- Item Details
+    htp.p('<table class="item-details">');
+    htp.p('<tr>');
+    htp.p('<h2>Details</h2>');--heading
+    htp.p('<th>Item ID</th>');
+    htp.p('<th>Item Name</th>');
+    htp.p('<th>Packing Size</th>');
+    htp.p('<th>Unit</th>');
+    htp.p('<th>No of Tons</th>');
+    htp.p('<th>No of Bags</th>');
+    htp.p('<th>Rate</th>');
+    htp.p('<th>Net Amount</th>');
+    htp.p('<th>Remarks</th>');
+    htp.p('</tr>');
+
+    FOR rec IN (SELECT 
+                    POR.DET_ID,
+                    PO_ID,
+                    DEMAND_DET_ID,
+                    ITM.ITEM_ID,
+                    ITM.ITEM_NAME,
+                    ITM.PACKING_SIZE,
+                    ITM.UNIT,
+                    ITM.PACKING,
+                    DRD.NO_TONS,
+                    DRD.NO_BAGS,
+                    POR.DEMAND_ORDER_STATUS,
+                    POR.CHANGE_TONS,
+                    POR.CHANGE_BAGS,
+                    POR.RATE,
+                    POR.NET_AMOUNT,
+                    POR.REMARKS
+                FROM 
+                    AB_PO_DEMAND_REQ_DET DRD 
+                JOIN AB_ITEMS_MASTER ITM ON ITM.ITEM_ID = DRD.ITEM_ID
+                LEFT JOIN AB_PO_PURCHASE_ORDER_DET POR ON POR.DEMAND_DET_ID = DRD.DET_ID
+                WHERE PO_ID = :P80_PO_ID)
+    LOOP
+        htp.p('<tr>');
+        htp.p('<td>' || rec.ITEM_ID || '</td>');
+        htp.p('<td>' || rec.ITEM_NAME || '</td>');
+        htp.p('<td>' || rec.PACKING_SIZE || '</td>');
+        htp.p('<td>' || rec.UNIT || '</td>');
+        htp.p('<td>' || rec.NO_TONS || '</td>');
+        htp.p('<td>' || rec.NO_BAGS || '</td>');
+        htp.p('<td>' || rec.RATE || '</td>');
+        htp.p('<td>' || rec.NET_AMOUNT || '</td>');
+        htp.p('<td>' || rec.REMARKS || '</td>');
+        htp.p('</tr>');
+    END LOOP;
+
+    htp.p('</table>');
+
+    htp.p('</body>');
+    htp.p('</html>');
+END;
+
